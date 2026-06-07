@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Burn</title>
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="88">🔥</text></svg>'>
+    <link rel="apple-touch-icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="88">🔥</text></svg>'>
+    <style>
+        /* base design tokens (standalone — no external stylesheet) */
+        :root {
+            --bg-primary: #f1f5f9; --bg-secondary: #ffffff; --bg-card: #f8fafc; --bg-card-hover: #f1f5f9;
+            --border: #e2e8f0; --text-primary: #1e293b; --text-secondary: #475569; --text-muted: #94a3b8;
+            --accent: #2563eb; --green: #16a34a; --red: #dc2626; --yellow: #ca8a04;
+            --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; }
+        /* ---- color/spacing accents ---- */
+        :root {
+            --accent: #0078d4;
+            --accent-dark: #005a9e;
+            --accent-glow: rgba(0,120,212,0.10);
+            --green: #059669;
+            --red: #dc2626;
+            --yellow: #d97706;
+            --solar: #f59e0b;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        body { background: var(--bg-primary); color: var(--text-primary); }
+
+        /* 0.15s transitions + subtle hover lift on stat cards (their signature) */
+        .tb-card, .tb-kpi, .tb-recent-item, .tb-fermi-card { transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s; }
+        .tb-kpi:hover, .tb-recent-item:hover, .tb-fermi-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        /* color-coded top border on KPI + Fermi stat cards */
+        .tb-kpi { border-top: 3px solid var(--accent); }
+        .tb-fermi-card { border-top: 3px solid var(--solar); }
+        /* monospace-blue dates, echoing the gridops asset-ID treatment */
+        .tb-data-table td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); font-size: 0.78rem; }
+        /* range selector: pill-style segmented control */
+        .tb-range-btn { border-radius: 9999px; }
+        .tb-range-btn.active { background: var(--accent); border-color: var(--accent); }
+        .tb-range-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+        .tb-header { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--bg-secondary); position: sticky; top: 0; z-index: 50; }
+        .tb-header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        .tb-header .tb-flame { color: var(--red); }
+        .tb-header-right { display: flex; align-items: center; gap: 1rem; }
+        .tb-header a { color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+        .tb-header a:hover { text-decoration: underline; }
+        .tb-icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; color: var(--text-secondary); font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; }
+        .tb-icon-btn:hover { background: var(--bg-card-hover); }
+        .tb-icon-btn.spinning { animation: tbspin 0.8s linear infinite; }
+        @keyframes tbspin { to { transform: rotate(360deg); } }
+
+        .tb-body { max-width: min(1700px, 96vw); margin: 1.5rem auto 4rem; padding: 0 1.5rem; }
+        .tb-meta { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 1rem; }
+
+        .tb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .tb-kpi { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; box-shadow: var(--shadow); }
+        .tb-kpi-val { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+        .tb-kpi-lab { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+        /* rolling-window strip */
+        .tb-recent { display: flex; gap: 0.75rem; margin: 0 0 1.25rem; flex-wrap: wrap; }
+        .tb-recent-item { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 0.55rem 0.9rem; min-width: 120px; box-shadow: var(--shadow); }
+        .tb-recent-val { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+        .tb-recent-lab { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; display: flex; flex-direction: column; line-height: 1.3; }
+        .tb-recent-lab span { text-transform: none; letter-spacing: 0; font-size: 0.66rem; }
+
+        .tb-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+        .tb-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; }
+        .tb-card-head h2 { font-size: 0.95rem; font-weight: 700; margin: 0; }
+        .tb-card-sub { font-size: 0.75rem; color: var(--text-muted); margin: -0.4rem 0 0.9rem; }
+
+        .tb-range { display: inline-flex; gap: 4px; }
+        .tb-range-btn { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 0.78rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .tb-range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        /* heatmap + left stat rail (uses the empty space beside the graph) */
+        .tb-heat-row { display: flex; gap: 1.75rem; align-items: flex-start; flex-wrap: wrap; }
+        .tb-recent-side { flex: 0 0 168px; display: flex; flex-direction: column; gap: 0.6rem; margin: 0; }
+        .tb-recent-side .tb-recent-item { min-width: 0; }
+        .tb-heat-row #tbHeatmap { flex: 1 1 auto; min-width: 0; }
+
+        /* heatmap — stacked per-platform lanes */
+        .tb-heat { overflow-x: auto; padding-bottom: 4px; }
+        .tb-heat-head { display: flex; gap: 8px; }
+        .tb-months { display: flex; height: 13px; margin-bottom: 4px; }
+        .tb-month { width: 18px; height: 13px; line-height: 13px; font-size: 9px; color: var(--text-muted); white-space: nowrap; flex: 0 0 auto; }
+        .tb-lane { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .tb-lane-label { width: 60px; flex: 0 0 60px; }
+        .tb-lane-name { font-size: 0.78rem; font-weight: 700; }
+        .tb-lane-total { font-size: 0.68rem; color: var(--text-muted); }
+        .tb-weeks { display: flex; gap: 3px; }
+        .tb-week { display: flex; flex-direction: column; gap: 3px; }
+        .tb-cell { width: 15px; height: 15px; border-radius: 2px; }
+        .tb-cell.tb-rank { font-size: 10px; }
+        .tb-cell[data-d]:hover { outline: 1.5px solid var(--text-primary); outline-offset: 0; }
+        .tb-cell-off { background: transparent; }
+        .tb-cell.tb-rank { display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; line-height: 1; position: relative; z-index: 1; }
+        .tb-cell.tb-rank-1 { box-shadow: 0 0 0 2px rgba(15,23,42,0.65); }
+        .tb-cell.tb-rank-2, .tb-cell.tb-rank-3, .tb-cell.tb-rank-4, .tb-cell.tb-rank-5 { box-shadow: 0 0 0 1.5px rgba(15,23,42,0.5); }
+        .tb-legend { display: flex; align-items: center; gap: 14px; margin-top: 0.7rem; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; }
+        .tb-leg-grp { display: inline-flex; align-items: center; gap: 3px; }
+        .tb-leg-name { margin-right: 3px; font-weight: 600; }
+        .tb-leg-note { color: var(--text-muted); opacity: 0.8; }
+        .tb-leg-sw { width: 13px; height: 13px; border-radius: 2px; display: inline-block; }
+
+        /* hover card */
+        .tb-tip { position: fixed; display: none; z-index: 9999; pointer-events: none; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 0.6rem 0.75rem; min-width: 180px; font-size: 0.78rem; }
+        .tb-tip-head { font-weight: 700; margin-bottom: 0.4rem; }
+        .tb-tip-row { display: flex; justify-content: space-between; gap: 1.5rem; color: var(--text-secondary); padding: 1px 0; font-variant-numeric: tabular-nums; }
+        .tb-tip-strong { font-weight: 700; color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 2px; }
+        .tb-tip-note { font-size: 0.66rem; color: var(--text-muted); margin-top: 0.4rem; }
+        .tb-tip-tag { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--solar); border: 1px solid var(--solar); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+        .tb-tip-row.tb-tip-hl { background: var(--accent); color: #fff; font-weight: 700; border-radius: 5px; margin: 2px -6px; padding: 3px 6px; }
+        .tb-tip-row.tb-tip-hl span { color: #fff; }
+        .tbd-est-banner { background: rgba(245,158,11,0.12); border: 1px solid var(--solar); color: #92400e; border-radius: 8px; padding: 0.55rem 0.7rem; font-size: 0.76rem; margin-bottom: 0.8rem; }
+        .tb-svg { width: 100%; height: auto; display: block; margin-top: 0.9rem; }
+        .tb-cap { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+        .tb-wk-leg { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; }
+        .tb-wk-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+        /* drivers */
+        .tb-split { margin-bottom: 1rem; }
+        .tb-split-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+        .tb-split-seg { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: #fff; white-space: nowrap; }
+        .tb-computer { background: var(--accent); }
+        .tb-assistant { background: var(--green); }
+        .tb-driver-axis { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); padding: 0 0 4px; }
+        .tb-drivers { display: flex; flex-direction: column; gap: 7px; }
+        .tb-driver { display: grid; grid-template-columns: 120px 1fr 110px; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+        .tb-driver-label { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tb-driver-track { position: relative; height: 16px; background: linear-gradient(90deg, var(--bg-card), var(--bg-card-hover)); border-radius: 8px; border: 1px solid var(--border); }
+        .tb-driver-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg-secondary); }
+        .tb-dot-computer { background: var(--accent); }
+        .tb-dot-assistant { background: var(--green); }
+        .tb-driver-val { font-size: 0.82rem; font-weight: 600; text-align: right; white-space: nowrap; }
+        .tb-driver-share { color: var(--text-muted); font-weight: 400; margin-left: 6px; font-size: 0.74rem; }
+        .tb-driver-evi { grid-column: 2 / 4; font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* table */
+        .tb-data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .tb-data-table th { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 2px solid var(--border); color: var(--text-muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .tb-data-table td { padding: 0.42rem 0.6rem; border-bottom: 1px solid var(--border); }
+        .tb-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .tb-avg { color: var(--accent); font-weight: 600; }
+
+        /* fermi */
+        .tb-fermi { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; }
+        .tb-fermi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; text-align: center; }
+        .tb-fermi-val { font-size: 1.35rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; }
+        .tb-fermi-lab { font-size: 0.8rem; font-weight: 600; margin-top: 3px; }
+        .tb-fermi-det { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* how to read */
+        .tb-rules { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+        .tb-rules li { font-size: 0.83rem; padding-left: 1.6rem; position: relative; color: var(--text-secondary); }
+        .tb-rules li::before { content: attr(data-n); position: absolute; left: 0; top: 0; width: 1.15rem; height: 1.15rem; background: var(--accent-glow); color: var(--accent); border-radius: 50%; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+        .tb-rules b { color: var(--text-primary); }
+
+        /* ---- clickable cards: filter / drill (gridops house pattern) ---- */
+        .tb-clickable { cursor: pointer; }
+        .tb-kpi.stat-active { box-shadow: 0 0 0 3px var(--accent), 0 4px 14px rgba(0,120,212,0.30); background: rgba(0,120,212,0.07); transform: translateY(-1px); }
+        .tb-data-table tbody tr.tb-clickable:hover { background: #ebf8ff; }
+        .tb-driver.tb-clickable:hover { background: var(--bg-card-hover); border-radius: 6px; }
+
+        /* active-filter pill */
+        .tb-filter { margin: -0.5rem 0 1rem; min-height: 0; }
+        .tb-filter-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 9999px; background: var(--accent); color: #fff; font-size: 0.76rem; font-weight: 600; cursor: pointer; }
+        .tb-filter-pill .tb-pill-x { font-size: 1rem; line-height: 1; opacity: 0.85; }
+        .tb-filter-pill:hover { background: var(--accent-dark); }
+
+        /* right-slide detail drawer */
+        .tbd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 9000; opacity: 0; transition: opacity 0.3s ease; }
+        .tbd-overlay.visible { opacity: 1; }
+        .tbd-panel { position: fixed; top: 0; right: -460px; width: 420px; max-width: 92vw; height: 100vh; background: var(--bg-secondary); z-index: 9001; box-shadow: -8px 0 30px rgba(0,0,0,0.18); transition: right 0.3s ease; display: flex; flex-direction: column; }
+        .tbd-panel.visible { right: 0; }
+        .tbd-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+        .tbd-head h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+        .tbd-close { background: none; border: none; font-size: 1.4rem; line-height: 1; color: var(--text-muted); cursor: pointer; padding: 0 4px; }
+        .tbd-close:hover { color: var(--text-primary); }
+        .tbd-body { padding: 1rem 1.25rem; overflow-y: auto; }
+        .tbd-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; font-size: 0.85rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--border); }
+        .tbd-strong { font-weight: 700; color: var(--text-primary); font-size: 0.95rem; }
+        .tbd-sep { height: 0.75rem; }
+        .tbd-sub { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; margin: 0.9rem 0 0.3rem; }
+        .tbd-evi { font-size: 0.8rem; color: var(--text-secondary); }
+        .tbd-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 1rem; line-height: 1.5; }
+
+        .tb-empty { color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0; }
+        code { background: var(--bg-card); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+
+        @media (max-width: 640px) {
+            .tb-driver { grid-template-columns: 96px 1fr 84px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login screen (shown only when auth required and not signed in) -->
+    <div id="login-screen" style="display:none">
+        <div class="login-card">
+            <div class="login-title">GRC Command Center</div>
+            <div class="login-subtitle">Sign in to view Token Burn</div>
+            <button class="login-btn" id="login-btn">Sign in with Microsoft</button>
+        </div>
+    </div>
+
+    <div id="app-container" style="display:none">
+        <div class="tb-header">
+            <h1><span class="tb-flame">&#128293;</span> Token Burn</h1>
+            <div class="tb-header-right">
+                <button class="tb-icon-btn" id="tbRefresh" title="Refresh from local data">&#8635;</button>
+                <a href="https://github.com/BadassHomesteader/dashboard-token-burn" target="_blank" rel="noopener" id="tbRepoLink" style="font-size:0.85rem;">GitHub ↗</a>
+            </div>
+        </div>
+
+        <div class="tb-body">
+            <div id="tbStatus"><p class="tb-empty">Loading token burn…</p></div>
+
+            <div id="tbContent" style="display:none">
+                <div class="tb-kpis" id="tbKpis"></div>
+                <div class="tb-meta" id="tbMeta"></div>
+                <div class="tb-filter" id="tbFilter"></div>
+
+                <!-- 1. Daily burn -->
+                <div class="tb-card">
+                    <div class="tb-card-head">
+                        <h2>Daily Token Burn</h2>
+                        <div class="tb-range" id="tbRange"></div>
+                    </div>
+                    <div class="tb-card-sub" id="tbHeatSub">Daily volume across Claude + Codex. Cell color is a log scale; quiet days are pale, heavy days run hot.</div>
+                    <div class="tb-heat-row">
+                        <div class="tb-recent tb-recent-side" id="tbRecent"></div>
+                        <div id="tbHeatmap"></div>
+                    </div>
+                    <div id="tbWeekly"></div>
+                </div>
+
+                <!-- 2. Drivers -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>What Drove the Burn</h2></div>
+                    <div class="tb-card-sub">Work families by token volume, joined from session metadata. Dot position is a log scale.</div>
+                    <div id="tbDrivers"></div>
+                </div>
+
+                <!-- 3. Moving average table -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>30-Day Moving Average</h2></div>
+                    <div class="tb-card-sub">Most recent 40 days. The 30-day average smooths daily spikes into a trend.</div>
+                    <div id="tbTable"></div>
+                </div>
+
+                <!-- 4. Scale equivalents -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>Scale Equivalents</h2></div>
+                    <div class="tb-card-sub">Fermi estimates from the running total. Assumptions are stated on each card.</div>
+                    <div class="tb-fermi" id="tbFermi"></div>
+                </div>
+
+                <!-- 5. How to read -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>How to Read This</h2></div>
+                    <div class="tb-card-sub">Heuristics for a fifteen-minute weekly review (our interpretation).</div>
+                    <ul class="tb-rules">
+                        <li data-n="1"><b>A quiet stretch can be worse than a spike.</b> Falling burn often means you stopped delegating, not that you got efficient.</li>
+                        <li data-n="2"><b>Watch the computer-vs-assistant split.</b> Rising computer-work share means more transformative delegation, not just chat.</li>
+                        <li data-n="3"><b>Read the trend, not the day.</b> Use the 30-day average; single days are noisy.</li>
+                        <li data-n="4"><b>Check what drove it.</b> A spike from coding is different from a spike from one runaway session.</li>
+                        <li data-n="5"><b>Cache is most of the volume.</b> Big numbers are mostly cached context reads — burn ≠ cost.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="token-burn.js"></script>
+    <script>
+        // Standalone: no auth. Show the app and load (getToken returns null).
+        var login = document.getElementById('login-screen'); if (login) login.remove();
+        document.getElementById('app-container').style.display = '';
+        TokenBurnApp.load(function () { return null; });
+    </script>
+</body>
+</html>

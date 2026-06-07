@@ -1,0 +1,15 @@
+{
+  "name": "token-burn-dashboard",
+  "version": "1.0.0",
+  "description": "A local, zero-dependency dashboard for your Claude Code + Codex token usage. GitHub-style heatmaps, per-platform lanes, drivers, and trends.",
+  "type": "commonjs",
+  "main": "server.js",
+  "bin": { "token-burn": "server.js" },
+  "scripts": {
+    "start": "node server.js",
+    "snapshot": "node scripts/generate-snapshot.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "keywords": ["claude", "claude-code", "codex", "tokens", "usage", "dashboard"]
+}

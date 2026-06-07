@@ -1,0 +1,10 @@
+# dependencies (there are none, but just in case)
+node_modules/
+
+# YOUR personal usage data — never commit these
+public/data/token-burn.json
+data/claude-history.json
+
+# os / editor cruft
+.DS_Store
+*.log
