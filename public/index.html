@@ -190,6 +190,32 @@
         .tbd-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 1rem; line-height: 1.5; }
 
         .tb-empty { color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0; }
+
+        /* ---- insights ---- */
+        .tb-ins-kpis { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1rem; }
+        .tb-ins-kval { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+        .tb-ins-klab { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .tb-ins-sub { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0.6rem 0 0.3rem; }
+        .tb-ins-bar { display: flex; height: 20px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+        .tb-ins-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.7rem; font-weight: 700; }
+        .tb-ins-legrow { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin-top: 0.4rem; font-size: 0.72rem; color: var(--text-secondary); }
+        .tb-ins-leg { display: inline-flex; align-items: center; gap: 4px; }
+        .tb-ins-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .tb-ins-type { display: grid; grid-template-columns: 140px 1fr 130px; align-items: center; gap: 10px; margin-bottom: 7px; }
+        .tb-ins-tname { font-size: 0.82rem; font-weight: 600; }
+        .tb-ins-ttrack { height: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .tb-ins-tfill { height: 100%; border-radius: 8px; }
+        .tb-ins-tval { font-size: 0.82rem; font-weight: 600; text-align: right; }
+        .tb-ins-tn { color: var(--text-muted); font-weight: 400; font-size: 0.72rem; margin-left: 6px; }
+        .tb-ins-row { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+        .tb-ins-row:last-child { border-bottom: none; }
+        .tb-ins-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+        .tb-ins-summary { font-size: 0.85rem; margin: 2px 0 4px; }
+        .tb-ins-friction { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
+        .tb-ins-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .tb-ins-badge { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 9999px; }
+        .tb-ins-help { font-size: 0.7rem; color: var(--text-muted); }
+        .tb-ins-tok { font-size: 0.72rem; font-weight: 600; color: var(--accent); margin-left: auto; }
         code { background: var(--bg-card); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
 
         @media (max-width: 640px) {
@@ -257,6 +283,30 @@
                     <div class="tb-card-head"><h2>Scale Equivalents</h2></div>
                     <div class="tb-card-sub">Fermi estimates from the running total. Assumptions are stated on each card.</div>
                     <div class="tb-fermi" id="tbFermi"></div>
+                </div>
+
+                <!-- Insights (from Claude Code /insights, joined to tokens; hidden if no facets) -->
+                <div id="tbInsights">
+                    <div class="tb-card">
+                        <div class="tb-card-head"><h2>Was the Burn Worth It?</h2></div>
+                        <div class="tb-card-sub">Session outcomes &amp; helpfulness, graded by Claude Code's /insights — joined to your token spend.</div>
+                        <div id="tbOutcomes"></div>
+                    </div>
+                    <div class="tb-card">
+                        <div class="tb-card-head"><h2>How You Work</h2></div>
+                        <div class="tb-card-sub">Tokens by session style. Bar length = tokens; the count is sessions of that type.</div>
+                        <div id="tbSessionTypes"></div>
+                    </div>
+                    <div class="tb-card">
+                        <div class="tb-card-head"><h2>Recent Sessions</h2></div>
+                        <div class="tb-card-sub">What you actually did, newest first — outcome, helpfulness, and token cost per session.</div>
+                        <div id="tbRecentSessions"></div>
+                    </div>
+                    <div class="tb-card">
+                        <div class="tb-card-head"><h2>Friction Log</h2></div>
+                        <div class="tb-card-sub">Where things took extra iterations — candidates for a CLAUDE.md rule or a skill.</div>
+                        <div id="tbFriction"></div>
+                    </div>
                 </div>
 
                 <!-- 5. How to read -->

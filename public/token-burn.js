@@ -90,7 +90,7 @@ window.TokenBurnApp = (function () {
         const recovered = t.recoveredThrough ? ` · history recovered through ${t.recoveredThrough}` : '';
         const estd = (t.estimated > 0 && t.estimatedRange) ? ` · ≈${fmt(t.estimated)} estimated for the ${t.estimatedRange.from}→${t.estimatedRange.to} gap (not in totals)` : '';
         document.getElementById('tbMeta').textContent =
-            `${t.firstDay} → ${t.lastDay} · ${plats.join(' + ')} · daily buckets in UTC${recovered}${estd} · generated ${new Date(DATA.generatedAt).toLocaleString()}`;
+            `${t.firstDay} → ${t.lastDay} · ${plats.join(' + ')} · daily buckets in ${DATA.timezone || 'UTC'}${recovered}${estd} · generated ${new Date(DATA.generatedAt).toLocaleString()}`;
 
         const r = DATA.recent || {};
         const peak = r.peakDay || {};
@@ -449,6 +449,77 @@ window.TokenBurnApp = (function () {
         renderDrivers();
         renderTable();
         renderFermi();
+        renderInsights();
+    }
+
+    // ---- Insights (from Claude Code /insights facets, joined to tokens) ----
+    const INS_COLORS = {
+        outcome: { fully_achieved: '#16a34a', mostly_achieved: '#5cc274', partially_achieved: '#d97706', unclear_from_transcript: '#94a3b8', not_achieved: '#dc2626' },
+        help: { essential: '#15803d', very_helpful: '#22c55e', moderately_helpful: '#d97706', unhelpful: '#dc2626' },
+        type: { multi_task: '#2563eb', iterative_refinement: '#7c4dcc', single_task: '#0891b2', quick_question: '#64748b', exploration: '#d97757' }
+    };
+    function insLabel(s) { return (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+    function stackBar(counts, order, colors, total) {
+        const segs = order.filter(k => counts[k]).map(k => {
+            const pct = 100 * counts[k] / Math.max(total, 1);
+            return `<div class="tb-ins-seg" style="width:${pct.toFixed(1)}%;background:${colors[k]}" title="${insLabel(k)}: ${counts[k]}">${pct >= 10 ? counts[k] : ''}</div>`;
+        }).join('');
+        const legend = order.filter(k => counts[k]).map(k =>
+            `<span class="tb-ins-leg"><span class="tb-ins-dot" style="background:${colors[k]}"></span>${insLabel(k)} ${counts[k]}</span>`).join('');
+        return `<div class="tb-ins-bar">${segs}</div><div class="tb-ins-legrow">${legend}</div>`;
+    }
+
+    function renderInsights() {
+        const wrap = document.getElementById('tbInsights');
+        if (!wrap) return;
+        const i = DATA.insights;
+        if (!i || !i.total) { wrap.style.display = 'none'; return; }
+        wrap.style.display = '';
+
+        // Card 1 — Outcomes & helpfulness
+        const c = i.counts;
+        const kpi = (v, l) => `<div class="tb-ins-kpi"><div class="tb-ins-kval">${v}</div><div class="tb-ins-klab">${l}</div></div>`;
+        document.getElementById('tbOutcomes').innerHTML =
+            `<div class="tb-ins-kpis">
+                ${kpi(i.landedPct + '%', 'goals landed')}
+                ${kpi(i.helpfulPct + '%', 'very helpful / essential')}
+                ${kpi(i.total, 'sessions analyzed')}
+                ${kpi(i.frictionCount, 'sessions w/ friction')}
+            </div>
+            <div class="tb-ins-sub">Outcome</div>${stackBar(c.outcome, i.order.outcome, INS_COLORS.outcome, i.total)}
+            <div class="tb-ins-sub">Helpfulness</div>${stackBar(c.helpfulness, i.order.helpfulness, INS_COLORS.help, i.total)}`;
+
+        // Card 2 — How you work (session types): bar per type, count + tokens
+        const types = i.order.sessionType.filter(t => c.sessionType[t]);
+        const maxTypeTok = Math.max(1, ...types.map(t => i.tokensByType[t] || 0));
+        document.getElementById('tbSessionTypes').innerHTML = types.map(t => {
+            const n = c.sessionType[t], tok = i.tokensByType[t] || 0;
+            const w = (100 * tok / maxTypeTok).toFixed(1);
+            return `<div class="tb-ins-type">
+                <div class="tb-ins-tname">${insLabel(t)}</div>
+                <div class="tb-ins-ttrack"><div class="tb-ins-tfill" style="width:${w}%;background:${INS_COLORS.type[t]}"></div></div>
+                <div class="tb-ins-tval">${fmt(tok)}<span class="tb-ins-tn">${n} sess</span></div>
+            </div>`;
+        }).join('') || '<p class="tb-empty">No session types.</p>';
+
+        // Card 3 — Recent sessions feed
+        const oBadge = o => o ? `<span class="tb-ins-badge" style="background:${INS_COLORS.outcome[o] || '#94a3b8'}1f;color:${INS_COLORS.outcome[o] || '#64748b'}">${insLabel(o)}</span>` : '';
+        document.getElementById('tbRecentSessions').innerHTML = i.recent.slice(0, 12).map(s =>
+            `<div class="tb-ins-row">
+                <div class="tb-ins-meta">${s.date}${s.project ? ' · ' + esc(s.project) : ''}</div>
+                <div class="tb-ins-summary">${esc(s.summary)}</div>
+                <div class="tb-ins-tags">${oBadge(s.outcome)}${s.helpfulness ? `<span class="tb-ins-help">${insLabel(s.helpfulness)}</span>` : ''}<span class="tb-ins-tok">${fmt(s.tokens)}</span></div>
+            </div>`).join('') || '<p class="tb-empty">No sessions.</p>';
+
+        // Card 4 — Friction log
+        const fr = i.friction || [];
+        document.getElementById('tbFriction').innerHTML = fr.length
+            ? fr.map(f => `<div class="tb-ins-row">
+                <div class="tb-ins-meta">${f.date}${f.project ? ' · ' + esc(f.project) : ''}<span class="tb-ins-tok">${fmt(f.tokens)}</span></div>
+                <div class="tb-ins-friction">${esc(f.detail)}</div>
+            </div>`).join('')
+            : '<p class="tb-empty">No friction recorded — smooth sailing. 🎉</p>';
     }
 
     // ---- stat-card filter (filters the screen) ----

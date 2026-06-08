@@ -15,6 +15,7 @@ Everything runs on your machine. **No data leaves your computer**, there are no 
 - **What drove the burn** — your sessions classified into work families (coding, debugging, automation, research, …) with a computer-work vs assistant-work split.
 - **Weekly trend** — a linear line chart of weekly burn per platform.
 - **Scale equivalents** — Fermi estimates (words, novels, reading-days…) from your running total.
+- **Insights** — if you've run Claude Code's `/insights`, four cards grade whether the burn was *worth it*: session **outcomes & helpfulness**, **how you work** (tokens by session style), a **recent-sessions** feed (outcome + cost per session), and a **friction log** of where things took extra iterations. Joined to tokens by session id; hidden if you have no `/insights` data.
 
 ![What drove the burn — work-family breakdown](docs/drivers.png)
 
@@ -59,6 +60,7 @@ scripts/
 |---|---|---|
 | Claude Code | `~/.claude/projects/**/*.jsonl` | per-message `usage` (input/output/cache) + model + timestamp |
 | Claude work meta | `~/.claude/usage-data/session-meta/*.json` | tools, languages, git activity → work-family labels |
+| Claude `/insights` | `~/.claude/usage-data/facets/*.json` | per-session outcome, helpfulness, session type, friction → the Insights cards (run `/insights` to populate) |
 | Codex CLI | `~/.codex/sessions/**/rollout-*.jsonl` | `token_count` events (input/output/cached/reasoning) |
 
 ChatGPT is **not** included — there's no local usage log to read (it would require a manual data export).
@@ -69,7 +71,7 @@ ChatGPT is **not** included — there's no local usage log to read (it would req
 - **Claude Code prunes old logs** after `cleanupPeriodDays` (default 30). To keep more history, set a larger value in `~/.claude/settings.json` (e.g. `"cleanupPeriodDays": 365`).
 - **Gap estimation:** if there's a large (≥14-day) hole in your local logs, the heatmap fills it with an *interpolated estimate* (clearly labeled, excluded from headline totals). Continuous data → no estimate.
 - **History recovery (optional):** drop a `data/claude-history.json` of `{ daily: [{date, claude, messages}] }` to prepend older history you've archived.
-- Daily buckets use **UTC** date boundaries.
+- Daily buckets use your **system-local timezone** so "today" matches your calendar day. Override with `TOKEN_BURN_TZ` (e.g. `TOKEN_BURN_TZ=America/New_York node server.js`). The recovered-history fallback stays date-only.
 
 ## Static hosting (optional)
 
