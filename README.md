@@ -12,10 +12,13 @@ Everything runs on your machine. **No data leaves your computer**, there are no 
 
 - **Daily Token Burn** — per-platform calendar heatmaps (Total / Claude / Codex), colored by each day's *rank within its lane* so the full spectrum is always used. Full-year view, range presets (24h → all), top-5 day badges, and a hover card per day.
 - **Rolling stats** — day-to-date, last 7 / 30 days, peak day.
+- **When the burn happens** — average burn by day of week (which weekday you delegate most) and Claude tokens by hour of day, as side-by-side bar charts with the heaviest bar highlighted.
 - **What drove the burn** — your sessions classified into work families (coding, debugging, automation, research, …) with a computer-work vs assistant-work split.
 - **Weekly trend** — a linear line chart of weekly burn per platform.
 - **Scale equivalents** — Fermi estimates (words, novels, reading-days…) from your running total.
 - **Insights** — if you've run Claude Code's `/insights`, four cards grade whether the burn was *worth it*: session **outcomes & helpfulness**, **how you work** (tokens by session style), a **recent-sessions** feed (outcome + cost per session), and a **friction log** of where things took extra iterations. Joined to tokens by session id; hidden if you have no `/insights` data.
+
+![When the burn happens — average burn by day of week and Claude tokens by hour of day](docs/patterns.png)
 
 ![What drove the burn — work-family breakdown](docs/drivers.png)
 
