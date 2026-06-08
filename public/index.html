@@ -218,8 +218,38 @@
         .tb-ins-tok { font-size: 0.72rem; font-weight: 600; color: var(--accent); margin-left: auto; }
         code { background: var(--bg-card); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
 
+        /* ---- collapsible cards (<details>) ---- */
+        .tb-collapse > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; }
+        .tb-collapse > summary::-webkit-details-marker { display: none; }
+        .tb-collapse[open] > summary { margin-bottom: 0.85rem; }
+        .tb-collapse > summary h2 { font-size: 0.95rem; font-weight: 700; margin: 0; }
+        .tb-collapse > summary:hover h2 { color: var(--accent); }
+        .tb-chevron { color: var(--text-muted); font-size: 0.8rem; transition: transform 0.2s; margin-left: 0.75rem; }
+        .tb-collapse[open] .tb-chevron { transform: rotate(180deg); }
+
+        /* ---- when-you-burn patterns ---- */
+        .tb-pat { display: grid; grid-template-columns: 1fr 1.4fr; gap: 1.75rem; align-items: start; }
+        .tb-pat-col h3 { font-size: 0.82rem; font-weight: 700; margin: 0 0 0.15rem; }
+        .tb-pat-sub { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.75rem; min-height: 1.6em; }
+        .tb-dow { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+        .tb-dow-col { flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+        .tb-dow-num { font-size: 0.68rem; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-bottom: 3px; white-space: nowrap; }
+        .tb-dow-col.tb-peak .tb-dow-num { color: var(--solar); font-weight: 700; }
+        .tb-dow-bar { width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 1px; transition: height 0.3s; }
+        .tb-dow-col.tb-peak .tb-dow-bar { background: var(--solar); }
+        .tb-dow-axis { display: flex; gap: 8px; margin-top: 4px; }
+        .tb-dow-tick { flex: 1 1 0; text-align: center; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; }
+        .tb-dow-tick.tb-peak { color: var(--solar); }
+        .tb-hours { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+        .tb-hour { flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+        .tb-hour-bar { width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 1px; transition: height 0.3s; }
+        .tb-hour.tb-peak .tb-hour-bar { background: var(--solar); }
+        .tb-hour-axis { display: flex; gap: 2px; margin-top: 4px; }
+        .tb-hour-tick { flex: 1 1 0; text-align: center; font-size: 8px; color: var(--text-muted); }
+
         @media (max-width: 640px) {
             .tb-driver { grid-template-columns: 96px 1fr 84px; }
+            .tb-pat { grid-template-columns: 1fr; gap: 1.25rem; }
         }
     </style>
 </head>
@@ -264,25 +294,31 @@
                     <div id="tbWeekly"></div>
                 </div>
 
-                <!-- 2. Drivers -->
+                <!-- 2. When the burn happens (day-of-week + hour-of-day) -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>When the Burn Happens</h2></div>
+                    <div class="tb-card-sub">Average burn by day of week, and Claude tokens by hour of day. Heaviest bar is highlighted.</div>
+                    <div class="tb-pat">
+                        <div class="tb-pat-col">
+                            <h3>By day of week</h3>
+                            <div class="tb-pat-sub" id="tbDowSub"></div>
+                            <div class="tb-dow" id="tbDow"></div>
+                            <div class="tb-dow-axis" id="tbDowAxis"></div>
+                        </div>
+                        <div class="tb-pat-col" id="tbHoursCol">
+                            <h3>By hour of day</h3>
+                            <div class="tb-pat-sub" id="tbHoursSub"></div>
+                            <div class="tb-hours" id="tbHours"></div>
+                            <div class="tb-hour-axis" id="tbHoursAxis"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Drivers -->
                 <div class="tb-card">
                     <div class="tb-card-head"><h2>What Drove the Burn</h2></div>
                     <div class="tb-card-sub">Work families by token volume, joined from session metadata. Dot position is a log scale.</div>
                     <div id="tbDrivers"></div>
-                </div>
-
-                <!-- 3. Moving average table -->
-                <div class="tb-card">
-                    <div class="tb-card-head"><h2>30-Day Moving Average</h2></div>
-                    <div class="tb-card-sub">Most recent 40 days. The 30-day average smooths daily spikes into a trend.</div>
-                    <div id="tbTable"></div>
-                </div>
-
-                <!-- 4. Scale equivalents -->
-                <div class="tb-card">
-                    <div class="tb-card-head"><h2>Scale Equivalents</h2></div>
-                    <div class="tb-card-sub">Fermi estimates from the running total. Assumptions are stated on each card.</div>
-                    <div class="tb-fermi" id="tbFermi"></div>
                 </div>
 
                 <!-- Insights (from Claude Code /insights, joined to tokens; hidden if no facets) -->
@@ -297,19 +333,33 @@
                         <div class="tb-card-sub">Tokens by session style. Bar length = tokens; the count is sessions of that type.</div>
                         <div id="tbSessionTypes"></div>
                     </div>
-                    <div class="tb-card">
-                        <div class="tb-card-head"><h2>Recent Sessions</h2></div>
+                    <details class="tb-card tb-collapse" open>
+                        <summary class="tb-card-head"><h2>Recent Sessions</h2><span class="tb-chevron">&#9660;</span></summary>
                         <div class="tb-card-sub">What you actually did, newest first — outcome, helpfulness, and token cost per session.</div>
                         <div id="tbRecentSessions"></div>
-                    </div>
-                    <div class="tb-card">
-                        <div class="tb-card-head"><h2>Friction Log</h2></div>
+                    </details>
+                    <details class="tb-card tb-collapse" open>
+                        <summary class="tb-card-head"><h2>Friction Log</h2><span class="tb-chevron">&#9660;</span></summary>
                         <div class="tb-card-sub">Where things took extra iterations — candidates for a CLAUDE.md rule or a skill.</div>
                         <div id="tbFriction"></div>
-                    </div>
+                    </details>
                 </div>
 
-                <!-- 5. How to read -->
+                <!-- Moving average table (collapsed by default) -->
+                <details class="tb-card tb-collapse">
+                    <summary class="tb-card-head"><h2>30-Day Moving Average</h2><span class="tb-chevron">&#9660;</span></summary>
+                    <div class="tb-card-sub">Most recent 40 days. The 30-day average smooths daily spikes into a trend.</div>
+                    <div id="tbTable"></div>
+                </details>
+
+                <!-- Scale equivalents -->
+                <div class="tb-card">
+                    <div class="tb-card-head"><h2>Scale Equivalents</h2></div>
+                    <div class="tb-card-sub">Fermi estimates from the running total. Assumptions are stated on each card.</div>
+                    <div class="tb-fermi" id="tbFermi"></div>
+                </div>
+
+                <!-- How to read -->
                 <div class="tb-card">
                     <div class="tb-card-head"><h2>How to Read This</h2></div>
                     <div class="tb-card-sub">Heuristics for a fifteen-minute weekly review (our interpretation).</div>

@@ -446,10 +446,65 @@ window.TokenBurnApp = (function () {
         renderHeader();
         renderRangeButtons();
         renderHeatmap();
+        renderPatterns();
         renderDrivers();
         renderTable();
         renderFermi();
         renderInsights();
+    }
+
+    // ---- when-the-burn-happens: day-of-week averages + hour-of-day totals ----
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const DOW_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const platLabel = p => p === 'claude' ? 'Claude' : p === 'codex' ? 'Codex' : 'total';
+    function fmtHour(h) { const ap = h < 12 ? 'am' : 'pm'; const hr = h % 12 === 0 ? 12 : h % 12; return hr + ap; }
+
+    function renderPatterns() {
+        renderDow();
+        renderHours();
+    }
+
+    // Average daily burn per weekday (measured days only), honoring the platform filter.
+    function renderDow() {
+        const host = document.getElementById('tbDow');
+        if (!host) return;
+        const key = platformFilter === 'all' ? 'total' : platformFilter;
+        const sum = new Array(7).fill(0), cnt = new Array(7).fill(0);
+        for (const d of (DATA.daily || [])) {
+            if (d.estimated) continue;
+            const g = new Date(d.date + 'T00:00:00').getDay();
+            sum[g] += (d[key] || 0); cnt[g] += 1;
+        }
+        const avg = sum.map((s, i) => cnt[i] ? s / cnt[i] : 0);
+        const max = Math.max(1, ...avg);
+        let peak = 0; for (let i = 1; i < 7; i++) if (avg[i] > avg[peak]) peak = i;
+        host.innerHTML = avg.map((v, i) =>
+            `<div class="tb-dow-col${i === peak ? ' tb-peak' : ''}" title="${DOW_FULL[i]}: ${fmtInt(v)} tokens/day avg">
+                <div class="tb-dow-num">${fmt(v)}</div>
+                <div class="tb-dow-bar" style="height:${(100 * v / max).toFixed(1)}%"></div>
+            </div>`).join('');
+        const axis = document.getElementById('tbDowAxis');
+        if (axis) axis.innerHTML = DOW.map((d, i) => `<div class="tb-dow-tick${i === peak ? ' tb-peak' : ''}">${d}</div>`).join('');
+        const sub = document.getElementById('tbDowSub');
+        if (sub) sub.textContent = `Avg ${platLabel(platformFilter)} burn per measured day · heaviest: ${DOW_FULL[peak]}`;
+    }
+
+    // Claude tokens by hour of day (whole history, platform-independent — Codex has no hour data).
+    function renderHours() {
+        const col = document.getElementById('tbHoursCol');
+        const host = document.getElementById('tbHours');
+        if (!host) return;
+        const byHour = DATA.patterns && DATA.patterns.byHour;
+        if (!byHour || !byHour.some(v => v > 0)) { if (col) col.style.display = 'none'; return; }
+        if (col) col.style.display = '';
+        const max = Math.max(1, ...byHour);
+        let peak = 0; for (let h = 1; h < byHour.length; h++) if (byHour[h] > byHour[peak]) peak = h;
+        host.innerHTML = byHour.map((v, h) =>
+            `<div class="tb-hour${h === peak ? ' tb-peak' : ''}" title="${fmtHour(h)}: ${fmtInt(v)} tokens"><div class="tb-hour-bar" style="height:${(100 * v / max).toFixed(1)}%"></div></div>`).join('');
+        const axis = document.getElementById('tbHoursAxis');
+        if (axis) axis.innerHTML = byHour.map((v, h) => `<div class="tb-hour-tick">${h % 6 === 0 ? fmtHour(h) : ''}</div>`).join('');
+        const sub = document.getElementById('tbHoursSub');
+        if (sub) sub.textContent = `Claude tokens by hour (${DATA.timezone || 'local'}) · peak hour ${fmtHour(peak)}`;
     }
 
     // ---- Insights (from Claude Code /insights facets, joined to tokens) ----
@@ -527,6 +582,7 @@ window.TokenBurnApp = (function () {
         platformFilter = (p === platformFilter || p === 'all') ? 'all' : p;
         renderHeader();      // updates active outline + filter pill
         renderHeatmap();     // lanes
+        renderDow();         // weekday averages honor the platform filter
         renderDrivers();     // driver list
     }
 
